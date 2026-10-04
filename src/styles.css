@@ -1,0 +1,628 @@
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html,
+body,
+#root {
+  height: 100%;
+  margin: 0;
+}
+
+html {
+  background: #15181d;
+}
+
+body {
+  position: fixed;
+  inset: 0;
+  overflow: hidden;
+  overscroll-behavior: none;
+  -webkit-user-select: none;
+  user-select: none;
+  -webkit-touch-callout: none;
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* The sheet. A soft ring stands in for a fingertip; it tightens when pressed. */
+.wrap {
+  position: fixed;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  display: block;
+  touch-action: none;
+  cursor:
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='32' height='32'%3E%3Ccircle cx='16' cy='16' r='11' fill='%23fff' fill-opacity='.10' stroke='%23fff' stroke-opacity='.55' stroke-width='1.25'/%3E%3C/svg%3E")
+      16 16,
+    pointer;
+}
+
+.wrap.pressing {
+  cursor:
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='32' height='32'%3E%3Ccircle cx='16' cy='16' r='7.5' fill='%23fff' fill-opacity='.22' stroke='%23fff' stroke-opacity='.7' stroke-width='1.25'/%3E%3C/svg%3E")
+      16 16,
+    pointer;
+}
+
+/* The pause at the end. */
+.veil {
+  position: fixed;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  background: radial-gradient(120% 90% at 50% 45%, rgba(74, 67, 61, 0.9), rgba(38, 34, 31, 0.97));
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 1.6s ease;
+}
+
+.veil.on {
+  opacity: 1;
+  pointer-events: auto;
+  transition-duration: 2.6s;
+}
+
+.beat {
+  grid-area: 1 / 1;
+  padding: 0 32px;
+  text-align: center;
+  opacity: 0;
+  visibility: hidden;
+  transform: translateY(6px);
+  transition:
+    opacity 1.2s ease,
+    transform 1.6s ease,
+    visibility 0s linear 1.2s;
+}
+
+.beat.show {
+  opacity: 1;
+  visibility: visible;
+  transform: none;
+  transition:
+    opacity 1.8s ease 1.3s,
+    transform 2.4s ease 1.3s,
+    visibility 0s;
+}
+
+.beat p {
+  margin: 0;
+  color: rgba(244, 236, 226, 0.86);
+  font-family: 'Iowan Old Style', 'Palatino Linotype', Palatino, 'Book Antiqua', Georgia, serif;
+  font-size: clamp(22px, 3.4vw, 34px);
+  font-weight: 400;
+  letter-spacing: 0.01em;
+  line-height: 1.3;
+}
+
+/* One slow in-and-out while the first line is up. */
+.beat.breathe p {
+  animation: breathe 4.4s ease-in-out 1.3s both;
+}
+
+@keyframes breathe {
+  0%,
+  100% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(1.06);
+  }
+}
+
+.choices {
+  margin-top: 30px;
+  display: flex;
+  justify-content: center;
+  gap: 34px;
+}
+
+.choices button {
+  appearance: none;
+  border: 0;
+  background: none;
+  padding: 12px 6px;
+  color: rgba(244, 236, 226, 0.46);
+  font-family: ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif;
+  font-size: 13px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  cursor: pointer;
+  transition: color 0.4s ease;
+}
+
+.choices button:hover,
+.choices button:focus-visible {
+  color: rgba(244, 236, 226, 0.9);
+  outline: none;
+}
+
+.choices.late button {
+  color: rgba(244, 236, 226, 0.26);
+}
+
+/* A quiet wordmark on the bare table, where there's room for one. */
+.mark {
+  position: fixed;
+  top: 26px;
+  left: 30px;
+  color: rgba(255, 255, 255, 0.55);
+  font-family: 'Iowan Old Style', 'Palatino Linotype', Palatino, 'Book Antiqua', Georgia, serif;
+  font-size: 15px;
+  font-style: italic;
+  letter-spacing: 0.02em;
+  pointer-events: none;
+  transition:
+    opacity 1.2s ease,
+    color 0.6s ease;
+}
+
+[data-ink='dark'] .mark {
+  color: rgba(40, 30, 34, 0.6);
+}
+
+.mark.hide {
+  opacity: 0;
+}
+
+@media (max-width: 760px) {
+  .mark {
+    display: none;
+  }
+}
+
+/* The running length: on the bare table where there's room, a small chip on a phone. */
+.meter {
+  position: fixed;
+  top: 22px;
+  right: 30px;
+  display: flex;
+  gap: 30px;
+  color: rgba(255, 255, 255, 0.82);
+  pointer-events: none;
+  transition:
+    opacity 0.6s ease,
+    color 0.6s ease;
+}
+
+.meter.hide {
+  opacity: 0;
+}
+
+.stat {
+  display: grid;
+  justify-items: end;
+  gap: 2px;
+}
+
+.meter-num {
+  font-family: 'Iowan Old Style', 'Palatino Linotype', Palatino, 'Book Antiqua', Georgia, serif;
+  font-size: 26px;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.01em;
+}
+
+.meter-cap {
+  font-family: ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif;
+  font-size: 10.5px;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  opacity: 0.6;
+  transition: opacity 0.5s ease;
+}
+
+.meter-cap.hit {
+  opacity: 1;
+}
+
+[data-ink='dark'] .meter {
+  color: rgba(40, 30, 34, 0.82);
+}
+
+@media (max-width: 760px) {
+  .meter,
+  [data-ink='dark'] .meter {
+    top: max(10px, env(safe-area-inset-top));
+    right: auto;
+    left: 50%;
+    transform: translateX(-50%);
+    gap: 14px;
+    padding: 6px 14px 7px;
+    border-radius: 999px;
+    background: rgba(20, 22, 26, 0.62);
+    -webkit-backdrop-filter: blur(14px);
+    backdrop-filter: blur(14px);
+    color: rgba(245, 245, 243, 0.92);
+    white-space: nowrap;
+  }
+
+  .stat {
+    display: flex;
+    align-items: baseline;
+    gap: 6px;
+  }
+
+  .meter-num {
+    font-size: 16px;
+  }
+
+  .meter-cap {
+    font-size: 9.5px;
+  }
+}
+
+.tally {
+  display: block;
+  margin-bottom: 14px;
+  color: rgba(244, 236, 226, 0.5);
+  font-family: ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif;
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+}
+
+.beat p.sub {
+  margin-top: 12px;
+  color: rgba(244, 236, 226, 0.5);
+  font-size: clamp(14px, 1.7vw, 17px);
+  font-style: italic;
+}
+
+.note {
+  margin: -4px 0 0 78px;
+  color: rgba(240, 240, 238, 0.42);
+  font-size: 11px;
+  line-height: 1.35;
+}
+
+.yours {
+  display: grid;
+  gap: 9px;
+  padding: 11px 12px 10px;
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.05);
+}
+
+.yours-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+}
+
+.yours-total {
+  color: #fff;
+  font-family: 'Iowan Old Style', 'Palatino Linotype', Palatino, 'Book Antiqua', Georgia, serif;
+  font-size: 20px;
+  font-variant-numeric: tabular-nums;
+}
+
+.yours-detail {
+  margin: -4px 0 0;
+  color: rgba(240, 240, 238, 0.5);
+}
+
+.yours-row {
+  display: flex;
+  gap: 8px;
+}
+
+.yours-row input {
+  flex: 1;
+  min-width: 0;
+  height: 34px;
+  padding: 0 10px;
+  border: 0;
+  border-radius: 9px;
+  background: rgba(255, 255, 255, 0.07);
+  color: #fff;
+  font: inherit;
+  -webkit-user-select: text;
+  user-select: text;
+}
+
+.yours-row input::placeholder {
+  color: rgba(240, 240, 238, 0.4);
+}
+
+.act {
+  height: 34px;
+  padding: 0 16px;
+  appearance: none;
+  border: 0;
+  border-radius: 9px;
+  background: rgba(255, 255, 255, 0.9);
+  color: #16181c;
+  font: inherit;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.act:hover {
+  background: #fff;
+}
+
+.reset {
+  min-height: 34px;
+  appearance: none;
+  border: 0;
+  border-radius: 9px;
+  background: rgba(255, 255, 255, 0.09);
+  color: rgba(240, 240, 238, 0.9);
+  font: inherit;
+  cursor: pointer;
+  transition:
+    background 0.18s ease,
+    color 0.18s ease;
+}
+
+.reset:hover {
+  background: rgba(255, 255, 255, 0.16);
+}
+
+/* Armed: the second tap wipes the counters. */
+.reset.sure {
+  background: rgba(232, 96, 84, 0.9);
+  color: #fff;
+}
+
+.yours-row input:focus-visible,
+.act:focus-visible,
+.reset:focus-visible {
+  outline: 1.5px solid rgba(255, 255, 255, 0.65);
+  outline-offset: 1px;
+}
+
+/* The controller: one visible bar, bottom centre. */
+.dock {
+  position: fixed;
+  left: 50%;
+  bottom: max(14px, env(safe-area-inset-bottom));
+  transform: translateX(-50%);
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  padding: 5px;
+  border-radius: 999px;
+  background: rgba(20, 22, 26, 0.74);
+  -webkit-backdrop-filter: blur(18px) saturate(1.3);
+  backdrop-filter: blur(18px) saturate(1.3);
+  box-shadow:
+    0 0 0 1px rgba(255, 255, 255, 0.09),
+    0 10px 30px rgba(0, 0, 0, 0.35);
+  color: rgba(245, 245, 243, 0.9);
+  font-family: ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif;
+  font-size: 13px;
+  white-space: nowrap;
+}
+
+.dock button {
+  height: 40px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  appearance: none;
+  border: 0;
+  border-radius: 999px;
+  background: none;
+  color: inherit;
+  font: inherit;
+  letter-spacing: 0.01em;
+  cursor: pointer;
+  transition: background 0.18s ease;
+}
+
+.dock-main {
+  padding: 0 16px 0 13px;
+}
+
+.dock-icon {
+  width: 40px;
+}
+
+.dock button:hover,
+.dock-main[aria-expanded='true'] {
+  background: rgba(255, 255, 255, 0.13);
+}
+
+.dock button:focus-visible,
+.close:focus-visible {
+  outline: 1.5px solid rgba(255, 255, 255, 0.65);
+  outline-offset: 1px;
+}
+
+.dock-rule {
+  width: 1px;
+  height: 18px;
+  margin: 0 3px;
+  background: rgba(255, 255, 255, 0.14);
+}
+
+.panel {
+  position: fixed;
+  left: 50%;
+  bottom: calc(max(14px, env(safe-area-inset-bottom)) + 60px);
+  width: min(340px, calc(100vw - 20px));
+  max-height: calc(100dvh - 96px);
+  overflow-y: auto;
+  padding: 12px 14px 14px;
+  display: grid;
+  gap: 10px;
+  border-radius: 18px;
+  background: rgba(20, 22, 26, 0.82);
+  -webkit-backdrop-filter: blur(22px) saturate(1.3);
+  backdrop-filter: blur(22px) saturate(1.3);
+  box-shadow:
+    0 0 0 1px rgba(255, 255, 255, 0.08),
+    0 18px 50px rgba(0, 0, 0, 0.45);
+  color: rgba(240, 240, 238, 0.86);
+  font-family: ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif;
+  font-size: 12px;
+  opacity: 0;
+  visibility: hidden;
+  transform: translate(-50%, 10px);
+  transition:
+    opacity 0.22s ease,
+    transform 0.22s ease,
+    visibility 0s linear 0.22s;
+}
+
+.panel.open {
+  opacity: 1;
+  visibility: visible;
+  transform: translate(-50%, 0);
+  transition-delay: 0s;
+}
+
+/* With room to spare, the controls sit to the side of the strip instead of over it. */
+@media (min-width: 760px) {
+  .panel {
+    left: auto;
+    right: 20px;
+    bottom: auto;
+    /* Starts below the length meter in the corner. */
+    top: 78px;
+    max-height: calc(100dvh - 160px);
+    transform: translate(10px, 0);
+  }
+
+  .panel.open {
+    transform: none;
+  }
+}
+
+.panel-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding-left: 2px;
+  font-size: 13px;
+  color: #fff;
+}
+
+.close {
+  width: 30px;
+  height: 30px;
+  display: grid;
+  place-items: center;
+  appearance: none;
+  border: 0;
+  border-radius: 50%;
+  background: none;
+  color: rgba(240, 240, 238, 0.6);
+  cursor: pointer;
+}
+
+.close:hover {
+  background: rgba(255, 255, 255, 0.1);
+  color: #fff;
+}
+
+.themes {
+  display: grid;
+  gap: 9px;
+  padding: 11px 12px 12px;
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.05);
+}
+
+.themes-head {
+  display: flex;
+  justify-content: space-between;
+}
+
+.theme-name {
+  color: #fff;
+}
+
+.row {
+  display: grid;
+  grid-template-columns: 68px 1fr;
+  align-items: center;
+  gap: 10px;
+}
+
+.lab {
+  color: rgba(240, 240, 238, 0.5);
+  letter-spacing: 0.02em;
+}
+
+.seg {
+  display: flex;
+  padding: 2px;
+  border-radius: 9px;
+  background: rgba(255, 255, 255, 0.06);
+}
+
+.seg button {
+  flex: 1;
+  min-height: 30px;
+  padding: 0 4px;
+  appearance: none;
+  border: 0;
+  border-radius: 7px;
+  background: none;
+  color: rgba(240, 240, 238, 0.6);
+  font: inherit;
+  white-space: nowrap;
+  cursor: pointer;
+  transition:
+    background 0.18s ease,
+    color 0.18s ease;
+}
+
+.seg button:hover {
+  color: rgba(240, 240, 238, 0.95);
+}
+
+.seg button[aria-pressed='true'] {
+  background: rgba(255, 255, 255, 0.16);
+  color: #fff;
+}
+
+.seg button:focus-visible,
+.swatches button:focus-visible {
+  outline: 1.5px solid rgba(255, 255, 255, 0.6);
+  outline-offset: 1px;
+}
+
+.swatches {
+  display: flex;
+  justify-content: space-between;
+}
+
+.swatches button {
+  width: 32px;
+  height: 32px;
+  padding: 0;
+  appearance: none;
+  border: 0;
+  border-radius: 50%;
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.18);
+  cursor: pointer;
+  transition: box-shadow 0.18s ease;
+}
+
+.swatches button[aria-pressed='true'] {
+  box-shadow:
+    0 0 0 2px rgba(20, 22, 26, 1),
+    0 0 0 3.5px rgba(255, 255, 255, 0.85);
+}
+
+.panel input[type='range'] {
+  width: 100%;
+  height: 30px;
+  margin: 0;
+  accent-color: #d9dde2;
+  cursor: pointer;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .beat.breathe p {
+    animation: none;
+  }
+}
