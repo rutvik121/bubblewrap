@@ -90,7 +90,26 @@ export default function App() {
     });
     audio.current = a;
     engine.current = e;
+
+    const unlock = () => {
+      a.resume();
+    };
+    const events = ['touchstart', 'touchend', 'pointerdown', 'mousedown', 'keydown'];
+    events.forEach((evt) => {
+      window.addEventListener(evt, unlock, { capture: true, passive: true });
+    });
+    const onVisibility = () => {
+      if (document.visibilityState === 'visible') {
+        a.resume();
+      }
+    };
+    document.addEventListener('visibilitychange', onVisibility);
+
     return () => {
+      events.forEach((evt) => {
+        window.removeEventListener(evt, unlock, { capture: true });
+      });
+      document.removeEventListener('visibilitychange', onVisibility);
       e.dispose();
       a.dispose();
     };

@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { THEMES } from './settings.js';
 import { formatLength } from './stats.js';
-import { haptic, hapticSupport } from './wrap/haptics.js';
+import { haptic, hapticSupport, isIOS } from './wrap/haptics.js';
 
 const HAPTIC_NOTE = {
   native: null,
@@ -101,6 +101,9 @@ export default function Settings({ open, settings, set, onClose, stats, name, on
           onChange={(e) => set({ volume: Number(e.target.value) })}
         />
       </div>
+      {isIOS && (
+        <p className="note">iPhone tip: if you don’t hear sound, check your side Silent switch or Action Button, and turn up media volume.</p>
+      )}
       <Seg
         label="Vibration"
         value={settings.haptics}

@@ -19,7 +19,7 @@ const nativeHaptics = () => {
   return cap && cap.isNativePlatform && cap.isNativePlatform() && cap.Plugins ? cap.Plugins.Haptics : null;
 };
 
-const isIOS =
+export const isIOS =
   typeof navigator !== 'undefined' &&
   (/iPad|iPhone|iPod/.test(navigator.userAgent) ||
     (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1));

@@ -20,6 +20,37 @@ const MIXES = {
 
 const rand = (a, b) => a + Math.random() * (b - a);
 
+// Silent 1-sample WAV base64 data URI to unlock iOS Safari Web Audio and switch category from ambient to playback
+const SILENT_WAV = 'data:audio/wav;base64,UklGRigAAABXQVZFZm10IBIAAAABAAEARKwAAIhYAQACABAAAABkYXRhAgAAAAEA';
+let iosAudioUnlocked = false;
+
+export function configureAudioSession() {
+  if (typeof navigator !== 'undefined' && 'audioSession' in navigator) {
+    try {
+      navigator.audioSession.type = 'playback';
+    } catch {}
+  }
+}
+
+export function unlockIOSAudio() {
+  if (iosAudioUnlocked) return;
+  iosAudioUnlocked = true;
+  configureAudioSession();
+  try {
+    const audio = new Audio();
+    audio.src = SILENT_WAV;
+    audio.setAttribute('playsinline', '');
+    audio.setAttribute('webkit-playsinline', '');
+    const p = audio.play();
+    if (p && typeof p.then === 'function') {
+      p.then(() => {
+        audio.pause();
+        audio.remove();
+      }).catch(() => {});
+    }
+  } catch {}
+}
+
 export class PopAudio {
   constructor() {
     this.ctx = null;
@@ -27,15 +58,26 @@ export class PopAudio {
     this.calm = 0;
     this.volume = 0.9;
     this.mix = MIXES.mixed;
+    this._unlocked = false;
   }
 
   _ensure() {
     if (this.ctx) return true;
-    const AC = window.AudioContext || window.webkitAudioContext;
+    const AC = typeof window !== 'undefined' ? (window.AudioContext || window.webkitAudioContext) : null;
     if (!AC) return false;
-    const ctx = new AC({ latencyHint: 'interactive' });
-    const len = Math.floor(ctx.sampleRate * 1.5);
-    const buf = ctx.createBuffer(1, len, ctx.sampleRate);
+    let ctx;
+    try {
+      ctx = new AC({ latencyHint: 'interactive' });
+    } catch {
+      try {
+        ctx = new AC();
+      } catch {
+        return false;
+      }
+    }
+    const sampleRate = ctx.sampleRate || 44100;
+    const len = Math.floor(sampleRate * 1.5);
+    const buf = ctx.createBuffer(1, len, sampleRate);
     const data = buf.getChannelData(0);
     for (let i = 0; i < len; i++) data[i] = Math.random() * 2 - 1;
 
@@ -56,9 +98,28 @@ export class PopAudio {
     return true;
   }
 
+  _unlockBuffer() {
+    if (!this.ctx || this._unlocked) return;
+    try {
+      const buf = this.ctx.createBuffer(1, 1, 22050);
+      const src = this.ctx.createBufferSource();
+      src.buffer = buf;
+      src.connect(this.ctx.destination);
+      src.start(0);
+      this._unlocked = true;
+    } catch {}
+  }
+
   /** Must be called from inside a user gesture; browsers keep audio locked until then. */
   resume() {
-    if (this._ensure() && this.ctx.state === 'suspended') this.ctx.resume();
+    configureAudioSession();
+    unlockIOSAudio();
+    if (this._ensure()) {
+      this._unlockBuffer();
+      if (this.ctx.state !== 'running') {
+        this.ctx.resume().catch(() => {});
+      }
+    }
   }
 
   _level(glide) {
@@ -107,7 +168,11 @@ export class PopAudio {
   }
 
   pop({ strong = false, pan = 0, size = 1 } = {}) {
-    if (this.muted || !this.ctx || this.ctx.state !== 'running') return;
+    if (this.muted) return;
+    if (!this._ensure()) return;
+    if (this.ctx.state !== 'running') {
+      this.resume();
+    }
     const ctx = this.ctx;
     const t = ctx.currentTime;
 
@@ -160,7 +225,11 @@ export class PopAudio {
 
   /** Pressing a bubble that's already gone: just a faint crinkle. */
   dud({ pan = 0 } = {}) {
-    if (this.muted || !this.ctx || this.ctx.state !== 'running') return;
+    if (this.muted) return;
+    if (!this._ensure()) return;
+    if (this.ctx.state !== 'running') {
+      this.resume();
+    }
     const ctx = this.ctx;
     const t = ctx.currentTime;
     const out = ctx.createGain();
@@ -172,7 +241,11 @@ export class PopAudio {
 
   /** Plastic sliding over the table as fresh wrap comes off the roll. */
   rustle() {
-    if (this.muted || !this.ctx || this.ctx.state !== 'running') return;
+    if (this.muted) return;
+    if (!this._ensure()) return;
+    if (this.ctx.state !== 'running') {
+      this.resume();
+    }
     const ctx = this.ctx;
     const t = ctx.currentTime;
     const out = ctx.createGain();

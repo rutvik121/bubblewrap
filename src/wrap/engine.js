@@ -373,12 +373,17 @@ export class BubbleWrap {
     c.addEventListener('pointercancel', this._onUp, opt);
     c.addEventListener('pointerleave', this._onLeave, opt);
     c.addEventListener('wheel', this._onWheel, opt);
-    c.addEventListener('touchstart', this._block, opt);
+    c.addEventListener('touchstart', this._onTouchStart, { passive: true });
     c.addEventListener('touchmove', this._block, opt);
     c.addEventListener('contextmenu', this._block, opt);
     window.addEventListener('resize', this._onResize);
   }
 
+  _onTouchStart = () => {
+    if (this.interactive) {
+      this.handlers.onPress?.();
+    }
+  };
   _block = (e) => e.preventDefault();
   _onResize = () => this.resize();
 
@@ -928,7 +933,7 @@ export class BubbleWrap {
     c.removeEventListener('pointercancel', this._onUp);
     c.removeEventListener('pointerleave', this._onLeave);
     c.removeEventListener('wheel', this._onWheel);
-    c.removeEventListener('touchstart', this._block);
+    c.removeEventListener('touchstart', this._onTouchStart);
     c.removeEventListener('touchmove', this._block);
     c.removeEventListener('contextmenu', this._block);
     window.removeEventListener('resize', this._onResize);
