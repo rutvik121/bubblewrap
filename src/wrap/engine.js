@@ -219,6 +219,7 @@ export class BubbleWrap {
       seeds: new Float32Array(n * 4),
       x: f(), y: f(), r: f(), size: f(), delay: f(),
       strong: new Uint8Array(n),
+      special: new Uint8Array(n),
       popped: new Uint8Array(n),
       armed: new Uint8Array(n),
       armAt: f(), popAt: f(), regrowAt: f(),
@@ -329,6 +330,8 @@ export class BubbleWrap {
     b.seeds[o] = h1 * 10 + h3;
     b.seeds[o + 1] = Math.cos(h4 * 6.283) * lean;
     b.seeds[o + 2] = Math.sin(h4 * 6.283) * lean;
+    b.special[i] = (h2 > 0.965) ? 1 : 0;
+    b.seeds[o + 3] = b.special[i] ? 1.0 : 0.0;
 
     b.popped[i] = b.armed[i] = 0;
     b.press[i] = b.pop[i] = b.wob[i] = b.wobV[i] = 0;
@@ -341,7 +344,8 @@ export class BubbleWrap {
     const s = {
       next: 0,
       pos: new Float32Array(SPECKS * 3),
-      par: new Float32Array(SPECKS * 2),
+      par: new Float32Array(SPECKS * 3),
+      special: new Uint8Array(SPECKS),
       vx: new Float32Array(SPECKS),
       vy: new Float32Array(SPECKS),
       age: new Float32Array(SPECKS).fill(1),
@@ -351,7 +355,7 @@ export class BubbleWrap {
     };
     const g = new THREE.BufferGeometry();
     s.posAttr = new THREE.BufferAttribute(s.pos, 3).setUsage(THREE.DynamicDrawUsage);
-    s.parAttr = new THREE.BufferAttribute(s.par, 2).setUsage(THREE.DynamicDrawUsage);
+    s.parAttr = new THREE.BufferAttribute(s.par, 3).setUsage(THREE.DynamicDrawUsage);
     g.setAttribute('position', s.posAttr);
     g.setAttribute('aSpeck', s.parAttr);
     const pts = new THREE.Points(g, this.speckMat);
@@ -510,6 +514,7 @@ export class BubbleWrap {
   _pop(i) {
     const b = this.b;
     const strong = b.strong[i] === 1;
+    const special = b.special && b.special[i] === 1;
     const gentle = 1 - 0.35 * this.calm;
     b.popped[i] = 1;
     b.armed[i] = 0;
@@ -548,7 +553,7 @@ export class BubbleWrap {
       });
     }
 
-    this._specks(x, y, b.r[i], strong, gentle);
+    this._specks(x, y, b.r[i], strong, gentle, special);
 
     this.handlers.onPop?.({
       strong,
@@ -556,27 +561,29 @@ export class BubbleWrap {
       size: b.size[i] * SIZE[this.opt.size],
       calm: this.calm,
       length: worth,
+      special,
     });
   }
 
-  _specks(x, y, r, strong, gentle) {
+  _specks(x, y, r, strong, gentle, isSpecial = false) {
     const s = this.specks;
-    const count = Math.round((strong ? 9 : 4 + Math.random() * 3) * gentle);
+    const count = Math.round((strong || isSpecial ? 10 : 4 + Math.random() * 3) * gentle);
     for (let k = 0; k < count; k++) {
       const i = s.next;
       s.next = (s.next + 1) % SPECKS;
       const a = Math.random() * Math.PI * 2;
-      const sp = this.pitch * (1.4 + Math.random() * 3.2) * (strong ? 1.3 : 1);
+      const sp = this.pitch * (1.4 + Math.random() * 3.2) * (strong || isSpecial ? 1.35 : 1);
       s.pos[i * 3] = x + Math.cos(a) * r * 0.35;
       s.pos[i * 3 + 1] = y + Math.sin(a) * r * 0.35;
       s.pos[i * 3 + 2] = r * 0.4;
       s.vx[i] = Math.cos(a) * sp;
       s.vy[i] = Math.sin(a) * sp;
+      s.special[i] = isSpecial ? 1 : 0;
       s.age[i] = 0;
-      s.life[i] = 0.14 + Math.random() * 0.2;
-      s.size[i] = 1.3 + Math.random() * 1.7;
+      s.life[i] = 0.14 + Math.random() * 0.22;
+      s.size[i] = (1.3 + Math.random() * 1.7) * (isSpecial ? 1.4 : 1);
     }
-    s.live = 0.4;
+    s.live = 0.45;
   }
 
   // ------------------------------------------------------------------ loop
@@ -812,7 +819,7 @@ export class BubbleWrap {
       const drag = Math.exp(-9 * dt);
       for (let i = 0; i < SPECKS; i++) {
         if (s.age[i] >= s.life[i]) {
-          s.par[i * 2 + 1] = 0;
+          s.par[i * 3 + 1] = 0;
           continue;
         }
         s.age[i] += dt;
@@ -821,8 +828,9 @@ export class BubbleWrap {
         s.pos[i * 3] += s.vx[i] * dt;
         s.pos[i * 3 + 1] += s.vy[i] * dt;
         const k = clamp(s.age[i] / s.life[i], 0, 1);
-        s.par[i * 2] = s.size[i] * (1 + k * 0.8);
-        s.par[i * 2 + 1] = 0.42 * (1 - k) * (1 - k);
+        s.par[i * 3] = s.size[i] * (1 + k * 0.8);
+        s.par[i * 3 + 1] = 0.42 * (1 - k) * (1 - k);
+        s.par[i * 3 + 2] = s.special[i] ? 1 : 0;
       }
       s.posAttr.needsUpdate = true;
       s.parAttr.needsUpdate = true;
@@ -914,6 +922,70 @@ export class BubbleWrap {
       this.canvas.classList.remove('pressing');
     }
     this.wake();
+  }
+
+  /** Pop bubble directly under client coordinates (px). */
+  popAtPoint(clientX, clientY) {
+    if (!this.interactive || !this.b) return false;
+    const rect = this.canvas.getBoundingClientRect();
+    const x = clientX - rect.left;
+    const y = -(clientY - rect.top);
+    const hit = this._pick(x, y, true);
+    if (hit >= 0 && !this.b.popped[hit] && !this.b.armed[hit]) {
+      this._arm(hit, false);
+      this.wake();
+      return true;
+    }
+    return false;
+  }
+
+  /** Pop nearest unpopped bubble at normalized (0..1) screen coordinates. */
+  popAtNormalized(nx, ny) {
+    if (!this.interactive || !this.b) return false;
+    const x = clamp(nx, 0.02, 0.98) * this.w;
+    const y = -clamp(ny, 0.05, 0.95) * this.h;
+    const b = this.b;
+    let best = -1;
+    let bestD = Infinity;
+    for (let i = 0; i < b.n; i++) {
+      if (b.popped[i] || b.armed[i]) continue;
+      const sy = b.y[i] + this.scroll;
+      if (sy > 0 || sy < -this.h) continue;
+      const dx = x - b.x[i];
+      const dy = y - sy;
+      const d = dx * dx + dy * dy;
+      if (d < bestD) {
+        bestD = d;
+        best = i;
+      }
+    }
+    if (best >= 0) {
+      this._arm(best, false);
+      this.wake();
+      return true;
+    }
+    return false;
+  }
+
+  /** Pop random unpopped bubble visible on screen. */
+  popRandomOnScreen() {
+    if (!this.interactive || !this.b) return false;
+    const b = this.b;
+    const candidates = [];
+    for (let i = 0; i < b.n; i++) {
+      if (b.popped[i] || b.armed[i]) continue;
+      const sy = b.y[i] + this.scroll;
+      if (sy <= 0 && sy >= -this.h && b.x[i] >= 0 && b.x[i] <= this.w) {
+        candidates.push(i);
+      }
+    }
+    if (candidates.length > 0) {
+      const idx = candidates[Math.floor(Math.random() * candidates.length)];
+      this._arm(idx, false);
+      this.wake();
+      return true;
+    }
+    return false;
   }
 
   /** Swap in a different sheet on the spot. */

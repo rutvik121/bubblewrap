@@ -34,3 +34,26 @@ export function shareLine(name, mm) {
   const who = name.trim();
   return `${who ? who + ' has' : 'I have'} popped ${formatLength(mm)} of bubble wrap. Your turn: ${location.href}`;
 }
+
+const BLITZ_KEY = 'wrap-blitz-best';
+
+export function loadBlitzBest() {
+  try {
+    return Number(localStorage.getItem(BLITZ_KEY)) || 0;
+  } catch {
+    return 0;
+  }
+}
+
+export function saveBlitzBest(score) {
+  try {
+    const cur = loadBlitzBest();
+    if (score > cur) {
+      localStorage.setItem(BLITZ_KEY, String(score));
+      return score;
+    }
+    return cur;
+  } catch {
+    return score;
+  }
+}

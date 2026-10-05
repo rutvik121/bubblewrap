@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { THEMES } from './settings.js';
+import { THEMES, SOUND_PACKS, AMBIENT_SOUNDS } from './settings.js';
 import { formatLength } from './stats.js';
 import { haptic, hapticSupport, isIOS } from './wrap/haptics.js';
 
@@ -31,9 +31,23 @@ function swatch(t) {
   return { background: `radial-gradient(circle at 50% 50%, ${film} 0 34%, ${t.a} 38%)` };
 }
 
-export default function Settings({ open, settings, set, onClose, stats, name, onName, onShare, shared, onReset }) {
+export default function Settings({
+  open,
+  settings,
+  set,
+  onClose,
+  stats,
+  blitzBest = 0,
+  onStartBlitz,
+  name,
+  onName,
+  onShare,
+  shared,
+  onReset,
+}) {
   const theme = THEMES.find((t) => t.id === settings.theme) || THEMES[0];
   const [sure, setSure] = useState(false);
+
   return (
     <div className={`panel ${open ? 'open' : ''}`} inert={!open} role="dialog" aria-label="Customize">
       <div className="panel-head">
@@ -83,14 +97,31 @@ export default function Settings({ open, settings, set, onClose, stats, name, on
         onChange={(v) => set({ feel: v })}
         options={[['light', 'Light'], ['normal', 'Normal'], ['firm', 'Firm']]}
       />
+
+      {/* Sound Packs */}
       <Seg
         label="Sound"
-        value={settings.voice}
-        onChange={(v) => set({ voice: v })}
-        options={[['mixed', 'Mixed'], ['soft', 'Soft'], ['crisp', 'Crisp'], ['deep', 'Deep']]}
+        value={settings.soundPack || 'classic'}
+        onChange={(v) => set({ soundPack: v })}
+        options={[
+          ['classic', 'Classic'],
+          ['plop', 'Water Plop'],
+          ['thock', 'Thock'],
+          ['marimba', 'Marimba'],
+        ]}
       />
+
+      {settings.soundPack === 'classic' && (
+        <Seg
+          label="Voice"
+          value={settings.voice}
+          onChange={(v) => set({ voice: v })}
+          options={[['mixed', 'Mixed'], ['soft', 'Soft'], ['crisp', 'Crisp'], ['deep', 'Deep']]}
+        />
+      )}
+
       <div className="row">
-        <label className="lab" htmlFor="vol">Volume</label>
+        <label className="lab" htmlFor="vol">Pop Vol</label>
         <input
           id="vol"
           type="range"
@@ -101,15 +132,44 @@ export default function Settings({ open, settings, set, onClose, stats, name, on
           onChange={(e) => set({ volume: Number(e.target.value) })}
         />
       </div>
+
+      {/* Ambient ASMR Soundscape */}
+      <Seg
+        label="Ambient"
+        value={settings.ambient || 'off'}
+        onChange={(v) => set({ ambient: v })}
+        options={[
+          ['off', 'Off'],
+          ['rain', 'Rain'],
+          ['waves', 'Waves'],
+          ['hum', 'Zen Hum'],
+        ]}
+      />
+
+      {settings.ambient !== 'off' && (
+        <div className="row">
+          <label className="lab" htmlFor="ambvol">ASMR Vol</label>
+          <input
+            id="ambvol"
+            type="range"
+            min="0"
+            max="1"
+            step="0.05"
+            value={settings.ambientVol ?? 0.35}
+            onChange={(e) => set({ ambientVol: Number(e.target.value) })}
+          />
+        </div>
+      )}
+
       {isIOS && (
         <p className="note">iPhone tip: if you don’t hear sound, check your side Silent switch or Action Button, and turn up media volume.</p>
       )}
+
       <Seg
         label="Vibration"
         value={settings.haptics}
         onChange={(v) => {
           set({ haptics: v });
-          // A sample buzz, so the choice can be felt straight away.
           haptic(false, v);
         }}
         options={[['off', 'Off'], ['light', 'Light'], ['strong', 'Strong']]}
@@ -117,12 +177,47 @@ export default function Settings({ open, settings, set, onClose, stats, name, on
       {HAPTIC_NOTE[hapticSupport] && (settings.haptics !== 'off' || hapticSupport === 'none') && (
         <p className="note">{HAPTIC_NOTE[hapticSupport]}</p>
       )}
+
+      <Seg
+        label="Zen Guide"
+        value={settings.zenBreathe ? 'on' : 'off'}
+        onChange={(v) => set({ zenBreathe: v === 'on' })}
+        options={[['on', 'Show'], ['off', 'Hide']]}
+      />
+
+      <Seg
+        label="Pop Speed"
+        value={settings.showPpm ? 'on' : 'off'}
+        onChange={(v) => set({ showPpm: v === 'on' })}
+        options={[['on', 'Show'], ['off', 'Hide']]}
+      />
+      {settings.showPpm && (
+        <p className="note">Shows real-time pops per minute while you pop.</p>
+      )}
+
       <Seg
         label="Breaks"
         value={settings.windDown ? 'on' : 'off'}
         onChange={(v) => set({ windDown: v === 'on' })}
         options={[['on', 'Every 1,000'], ['off', 'Never']]}
       />
+
+      <div className="challenge-row">
+        <button
+          type="button"
+          className="blitz-btn"
+          onClick={() => {
+            onClose();
+            onStartBlitz?.();
+          }}
+        >
+          <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2" />
+          </svg>
+          <span>Start 30s Pop Blitz</span>
+        </button>
+        {blitzBest > 0 && <span className="blitz-best">Best: {blitzBest} pops</span>}
+      </div>
 
       <div className="yours">
         <div className="yours-head">

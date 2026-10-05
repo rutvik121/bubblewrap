@@ -14,16 +14,35 @@ export const THEMES = [
   { id: 'lilac', label: 'Lilac', a: '#bcaed8', b: '#9384b2', tex: 0.04, tint: [0.86, 0.79, 1.0], ink: 'dark' },
 ];
 
+export const SOUND_PACKS = [
+  { id: 'classic', label: 'Classic Wrap' },
+  { id: 'plop', label: 'Water Plop' },
+  { id: 'thock', label: 'Switch Thock' },
+  { id: 'marimba', label: 'Wood Marimba' },
+];
+
+export const AMBIENT_SOUNDS = [
+  { id: 'off', label: 'Off' },
+  { id: 'rain', label: 'Rain' },
+  { id: 'waves', label: 'Waves' },
+  { id: 'hum', label: 'Hum' },
+];
+
 export const DEFAULTS = {
   theme: 'studio',
   size: 'm', // s | m | l
   endless: 'roll', // roll | regrow | off
   feel: 'normal', // light | normal | firm
+  soundPack: 'classic', // classic | plop | thock | marimba
   voice: 'mixed', // mixed | soft | crisp | deep
   volume: 0.9,
+  ambient: 'off', // off | rain | waves | hum
+  ambientVol: 0.35,
   haptics: 'light', // off | light | strong
   windDown: true,
   meter: true,
+  showPpm: true,
+  zenBreathe: false,
 };
 
 const KEY = 'wrap-settings';

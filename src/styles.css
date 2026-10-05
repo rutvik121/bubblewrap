@@ -626,3 +626,294 @@ body {
     animation: none;
   }
 }
+
+/* Lucky Golden Bubble Toast */
+.lucky-toast {
+  position: fixed;
+  top: 72px;
+  left: 50%;
+  transform: translateX(-50%) translateY(-10px);
+  padding: 8px 18px;
+  border-radius: 999px;
+  background: rgba(30, 26, 18, 0.88);
+  -webkit-backdrop-filter: blur(16px);
+  backdrop-filter: blur(16px);
+  border: 1px solid rgba(255, 215, 90, 0.45);
+  box-shadow: 0 8px 24px rgba(255, 190, 40, 0.25);
+  color: #ffe699;
+  font-family: ui-sans-serif, system-ui, -apple-system, sans-serif;
+  font-size: 13px;
+  font-weight: 500;
+  letter-spacing: 0.02em;
+  pointer-events: none;
+  opacity: 0;
+  visibility: hidden;
+  transition: opacity 0.3s ease, transform 0.3s cubic-bezier(0.2, 0.9, 0.3, 1), visibility 0s linear 0.3s;
+  z-index: 50;
+}
+
+.lucky-toast.show {
+  opacity: 1;
+  visibility: visible;
+  transform: translateX(-50%) translateY(0);
+  transition-delay: 0s;
+}
+
+/* Zen Breathe Rhythm Guide */
+.zen-breathe-guide {
+  position: fixed;
+  bottom: 86px;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  pointer-events: none;
+  z-index: 40;
+}
+
+.zen-circle {
+  width: 58px;
+  height: 58px;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(160, 220, 255, 0.25) 0%, rgba(130, 180, 240, 0.08) 60%, transparent 100%);
+  border: 1.5px solid rgba(200, 235, 255, 0.45);
+  box-shadow: 0 0 20px rgba(160, 210, 255, 0.3);
+  animation: zenPulse 10s ease-in-out infinite;
+}
+
+.zen-caption {
+  font-family: ui-sans-serif, system-ui, sans-serif;
+  font-size: 11px;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: rgba(220, 235, 250, 0.7);
+}
+
+@keyframes zenPulse {
+  0%, 100% {
+    transform: scale(0.85);
+    opacity: 0.4;
+  }
+  40%, 60% {
+    transform: scale(1.35);
+    opacity: 0.9;
+  }
+}
+
+/* 30s Blitz HUD */
+.blitz-hud {
+  position: fixed;
+  top: max(14px, env(safe-area-inset-top));
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 6px 16px;
+  border-radius: 999px;
+  background: rgba(22, 24, 30, 0.85);
+  -webkit-backdrop-filter: blur(18px);
+  backdrop-filter: blur(18px);
+  border: 1px solid rgba(255, 200, 60, 0.35);
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.35);
+  z-index: 45;
+  color: #fff;
+  font-family: ui-sans-serif, system-ui, sans-serif;
+}
+
+.blitz-sec {
+  font-family: 'Iowan Old Style', Palatino, Georgia, serif;
+  font-size: 20px;
+  font-weight: 700;
+  color: #ffda6a;
+}
+
+.blitz-score {
+  display: flex;
+  align-items: baseline;
+  gap: 5px;
+}
+
+.blitz-num {
+  font-family: 'Iowan Old Style', Palatino, Georgia, serif;
+  font-size: 22px;
+  font-weight: 700;
+}
+
+.blitz-lbl {
+  font-size: 9px;
+  letter-spacing: 0.16em;
+  opacity: 0.6;
+}
+
+.blitz-cancel {
+  appearance: none;
+  border: 0;
+  background: rgba(255, 255, 255, 0.12);
+  color: rgba(255, 255, 255, 0.8);
+  font-size: 11px;
+  padding: 4px 10px;
+  border-radius: 999px;
+  cursor: pointer;
+}
+
+.blitz-cancel:hover {
+  background: rgba(255, 255, 255, 0.22);
+}
+
+/* Blitz Results Modal */
+.blitz-modal-backdrop {
+  position: fixed;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  background: rgba(10, 12, 16, 0.78);
+  -webkit-backdrop-filter: blur(12px);
+  backdrop-filter: blur(12px);
+  z-index: 60;
+  animation: fadeIn 0.3s ease;
+}
+
+.blitz-modal {
+  width: min(340px, calc(100vw - 32px));
+  padding: 24px 20px 20px;
+  border-radius: 20px;
+  background: rgba(24, 27, 34, 0.95);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.6);
+  text-align: center;
+  color: #fff;
+  font-family: ui-sans-serif, system-ui, sans-serif;
+}
+
+.blitz-badge {
+  display: inline-block;
+  padding: 4px 12px;
+  border-radius: 999px;
+  background: rgba(255, 205, 60, 0.16);
+  color: #ffd659;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  margin-bottom: 12px;
+}
+
+.blitz-modal h2 {
+  margin: 0;
+  font-family: 'Iowan Old Style', Palatino, Georgia, serif;
+  font-size: 38px;
+  font-weight: 600;
+}
+
+.blitz-stat {
+  margin: 4px 0 10px;
+  color: rgba(240, 240, 238, 0.6);
+  font-size: 13px;
+}
+
+.blitz-record {
+  margin: 0 0 22px;
+  font-size: 12px;
+  color: rgba(240, 240, 238, 0.45);
+}
+
+.blitz-actions {
+  display: flex;
+  gap: 10px;
+}
+
+.blitz-again,
+.blitz-done {
+  flex: 1;
+  height: 38px;
+  border: 0;
+  border-radius: 10px;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.blitz-again {
+  background: #ffda6a;
+  color: #1a1708;
+}
+
+.blitz-again:hover {
+  background: #ffe38a;
+  transform: translateY(-1px);
+}
+
+.blitz-done {
+  background: rgba(255, 255, 255, 0.1);
+  color: rgba(255, 255, 255, 0.85);
+}
+
+.blitz-done:hover {
+  background: rgba(255, 255, 255, 0.18);
+}
+
+/* PPM Speed Pill */
+.ppm-stat {
+  padding-right: 4px;
+}
+
+.ppm-stat.frenzy .meter-num {
+  color: #ff9b53;
+  text-shadow: 0 0 10px rgba(255, 120, 40, 0.6);
+}
+
+.ppm-stat.frenzy .meter-cap {
+  color: #ffb885;
+}
+
+/* Dock icon active state */
+.dock-icon.active {
+  background: rgba(255, 255, 255, 0.2);
+  color: #ffd659;
+}
+
+/* Settings challenge row */
+.challenge-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 12px;
+  border-radius: 12px;
+  background: rgba(255, 205, 60, 0.08);
+  border: 1px solid rgba(255, 205, 60, 0.2);
+}
+
+.blitz-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  appearance: none;
+  border: 0;
+  background: rgba(255, 205, 60, 0.22);
+  color: #ffe48a;
+  font-family: inherit;
+  font-size: 12px;
+  font-weight: 600;
+  padding: 7px 12px;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: background 0.18s ease;
+}
+
+.blitz-btn:hover {
+  background: rgba(255, 205, 60, 0.35);
+}
+
+.blitz-best {
+  font-size: 11px;
+  color: rgba(255, 230, 160, 0.7);
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}

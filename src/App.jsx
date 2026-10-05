@@ -3,13 +3,10 @@ import { BubbleWrap } from './wrap/engine.js';
 import { PopAudio } from './wrap/audio.js';
 import { haptic, hapticPress } from './wrap/haptics.js';
 import { THEMES, loadSettings, saveSettings } from './settings.js';
-import { MILESTONES, formatLength, loadStats, saveStats, shareLine } from './stats.js';
+import { MILESTONES, formatLength, loadStats, saveStats, shareLine, loadBlitzBest, saveBlitzBest } from './stats.js';
 import { emptyCopy, milestoneCopy } from './copy.js';
 import Settings from './Settings.jsx';
 
-// The break comes each time the bubble counter on screen passes another
-// multiple of this. Adding ?every=50 to the address shortens it, which is
-// handy for seeing the break quickly.
 const EVERY = Math.max(10, Number(new URLSearchParams(location.search).get('every')) || 1000);
 const nextMark = (count) => (Math.floor(count / EVERY) + 1) * EVERY;
 
@@ -21,38 +18,131 @@ function readMuted() {
   }
 }
 
+const KEY_ROWS = [
+  { row: 0.18, keys: '1234567890-=' },
+  { row: 0.38, keys: 'qwertyuiop[]\\' },
+  { row: 0.58, keys: "asdfghjkl;'" },
+  { row: 0.78, keys: 'zxcvbnm,./' },
+];
+
 export default function App() {
   const canvasRef = useRef(null);
   const engine = useRef(null);
   const audio = useRef(null);
-  // pops: bubbles this sitting. next: the all-time count that earns the next
-  // break. breaks: how many have been shown, which picks the line.
+  const lastMouse = useRef({ x: 0, y: 0, onScreen: false });
+
   const journey = useRef({ lastPop: 0, pops: 0, next: 0, breaks: 0 });
   const [pause, setPause] = useState({ count: 0, line: '', ask: '' });
-  // Length of wrap popped: all time (saved) and since the page opened.
   const stats = useRef({ ...loadStats(), session: 0, dirty: false });
   if (!journey.current.next) journey.current.next = nextMark(stats.current.pops);
+
   const meterNum = useRef(null);
   const meterCount = useRef(null);
   const [caption, setCaption] = useState('of wrap');
   const [view, setView] = useState(() => ({ mm: stats.current.mm, session: 0, pops: stats.current.pops }));
   const [name, setName] = useState(stats.current.name);
   const [shared, setShared] = useState(false);
-  // pop → breath → ask → (pop | bye)
+
   const [phase, setPhase] = useState('pop');
   const phaseRef = useRef(phase);
   phaseRef.current = phase;
+
   const [muted, setMuted] = useState(readMuted);
   const [settings, setSettings] = useState(loadSettings);
   const settingsRef = useRef(settings);
   settingsRef.current = settings;
-  // On a wide screen there's room beside the strip, so the controls start open.
+
   const [panel, setPanel] = useState(() => window.matchMedia('(min-width: 1100px)').matches);
+  const [fullscreen, setFullscreen] = useState(() => Boolean(typeof document !== 'undefined' && document.fullscreenElement));
+
+  // Speed meter (PPM: Pops Per Minute)
+  const popTimes = useRef([]);
+  const [ppm, setPpm] = useState(0);
+
+  // Lucky golden bubble toast
+  const [luckyToast, setLuckyToast] = useState(false);
+
+  // 30s Pop Blitz Challenge mode
+  const [blitz, setBlitz] = useState(() => ({
+    active: false,
+    timeLeft: 30,
+    pops: 0,
+    best: loadBlitzBest(),
+    isNewBest: false,
+    showResult: false,
+  }));
+  const blitzRef = useRef(blitz);
+  blitzRef.current = blitz;
+
+  // Listen to fullscreen changes
+  useEffect(() => {
+    const onFs = () => setFullscreen(Boolean(document.fullscreenElement));
+    document.addEventListener('fullscreenchange', onFs);
+    return () => document.removeEventListener('fullscreenchange', onFs);
+  }, []);
+
+  const toggleFullscreen = useCallback(() => {
+    if (!document.fullscreenElement) {
+      document.documentElement.requestFullscreen().catch(() => {});
+    } else {
+      document.exitFullscreen().catch(() => {});
+    }
+  }, []);
+
+  // 30s Blitz Controls
+  const startBlitz = useCallback(() => {
+    setPhase('pop');
+    setPanel(false);
+    audio.current?.resume();
+    engine.current?.reset();
+    setBlitz({
+      active: true,
+      timeLeft: 30,
+      pops: 0,
+      best: loadBlitzBest(),
+      isNewBest: false,
+      showResult: false,
+    });
+  }, []);
+
+  const stopBlitz = useCallback((finalPops) => {
+    const curBest = loadBlitzBest();
+    const isNew = finalPops > curBest;
+    const best = saveBlitzBest(finalPops);
+    setBlitz((b) => ({
+      ...b,
+      active: false,
+      timeLeft: 0,
+      pops: finalPops,
+      best,
+      isNewBest: isNew,
+      showResult: true,
+    }));
+  }, []);
+
+  useEffect(() => {
+    if (!blitz.active) return;
+    const timer = setInterval(() => {
+      setBlitz((b) => {
+        if (!b.active) return b;
+        if (b.timeLeft <= 1) {
+          clearInterval(timer);
+          stopBlitz(b.pops);
+          return { ...b, active: false, timeLeft: 0 };
+        }
+        return { ...b, timeLeft: b.timeLeft - 1 };
+      });
+    }, 1000);
+    return () => clearInterval(timer);
+  }, [blitz.active, stopBlitz]);
 
   useEffect(() => {
     const a = new PopAudio();
     a.setMuted(readMuted());
-    // The meter is written straight to the page so it keeps up with fast popping.
+    a.setSoundPack(settingsRef.current.soundPack);
+    a.setAmbient(settingsRef.current.ambient);
+    a.setAmbientVolume(settingsRef.current.ambientVol);
+
     const addLength = (mm) => {
       const st = stats.current;
       const before = st.mm;
@@ -67,12 +157,12 @@ export default function App() {
         setTimeout(() => setCaption('of wrap'), 4500);
       }
     };
+
     const e = new BubbleWrap(canvasRef.current, settingsRef.current, {
       onPress: () => {
         a.resume();
         hapticPress(settingsRef.current.haptics);
       },
-      // Sound, haptic and collapse all fire from the same frame.
       onPop: (info) => {
         a.pop(info);
         haptic(info.strong, settingsRef.current.haptics);
@@ -80,14 +170,28 @@ export default function App() {
         journey.current.lastPop = performance.now();
         stats.current.pops++;
         addLength(info.length);
+
+        // Record for live PPM calculation
+        popTimes.current.push(performance.now());
+
+        // Increment blitz counter if blitz active
+        if (blitzRef.current.active) {
+          setBlitz((b) => ({ ...b, pops: b.pops + 1 }));
+        }
+
+        // Lucky Golden Bubble celebration
+        if (info.special) {
+          setLuckyToast(true);
+          setTimeout(() => setLuckyToast(false), 2400);
+        }
       },
       onDud: (info) => a.dud(info),
-      // A finished sheet is rounded up to its full 50 cm as it rolls away.
       onFeed: (info) => {
         a.rustle();
         if (info.length > 0) addLength(info.length);
       },
     });
+
     audio.current = a;
     engine.current = e;
 
@@ -115,41 +219,111 @@ export default function App() {
     };
   }, []);
 
+  // Keyboard desktop popping & cursor tracking
   useEffect(() => {
+    const onMouseMove = (e) => {
+      lastMouse.current = { x: e.clientX, y: e.clientY, onScreen: true };
+    };
+    const onMouseLeave = () => {
+      lastMouse.current.onScreen = false;
+    };
+    window.addEventListener('mousemove', onMouseMove);
+    document.addEventListener('mouseleave', onMouseLeave);
+
+    const onKeyDown = (e) => {
+      if (
+        e.target.tagName === 'INPUT' ||
+        e.target.tagName === 'TEXTAREA' ||
+        e.target.isContentEditable ||
+        e.altKey ||
+        e.ctrlKey ||
+        e.metaKey
+      ) {
+        return;
+      }
+      if (phaseRef.current !== 'pop') return;
+
+      audio.current?.resume();
+
+      if (e.code === 'Space' || e.key === ' ' || e.key === 'Enter') {
+        e.preventDefault();
+        const m = lastMouse.current;
+        if (m.onScreen && m.x > 0 && m.y > 0) {
+          const popped = engine.current?.popAtPoint(m.x, m.y);
+          if (!popped) engine.current?.popRandomOnScreen();
+        } else {
+          engine.current?.popRandomOnScreen();
+        }
+        return;
+      }
+
+      // Key row coordinates mapping
+      const k = e.key.toLowerCase();
+      for (const r of KEY_ROWS) {
+        const idx = r.keys.indexOf(k);
+        if (idx !== -1) {
+          e.preventDefault();
+          const nx = (idx + 0.5) / r.keys.length;
+          const ny = r.row;
+          engine.current?.popAtNormalized(nx, ny);
+          return;
+        }
+      }
+    };
+
+    window.addEventListener('keydown', onKeyDown);
+    return () => {
+      window.removeEventListener('mousemove', onMouseMove);
+      document.removeEventListener('mouseleave', onMouseLeave);
+      window.removeEventListener('keydown', onKeyDown);
+    };
+  }, []);
+
+  // Sync settings to engine & audio
+  useEffect(() => {
+    if (!engine.current || !audio.current) return;
     engine.current.setOptions(settings);
     audio.current.setVolume(settings.volume);
     audio.current.setVoice(settings.voice);
+    audio.current.setSoundPack(settings.soundPack);
+    audio.current.setAmbient(settings.ambient);
+    audio.current.setAmbientVolume(settings.ambientVol);
     saveSettings(settings);
     const theme = THEMES.find((t) => t.id === settings.theme) || THEMES[0];
     document.documentElement.dataset.ink = theme.ink;
   }, [settings]);
 
-  // The journey: the longer the popping goes on, the calmer everything gets.
+  // Rolling stats, breaks, and live PPM computation
   useEffect(() => {
     const STEP = 0.2;
     const id = setInterval(() => {
       const j = journey.current;
       const s = settingsRef.current;
       const st = stats.current;
+
+      // Update live PPM
+      const cutoff = performance.now() - 3200;
+      while (popTimes.current.length > 0 && popTimes.current[0] < cutoff) {
+        popTimes.current.shift();
+      }
+      const currentPpm = popTimes.current.length > 0 ? Math.round((popTimes.current.length / 3.2) * 60) : 0;
+      setPpm(currentPpm);
+
       if (st.dirty) {
         st.dirty = false;
         saveStats(st);
         setView({ mm: st.mm, session: st.session, pops: st.pops });
       }
-      if (phaseRef.current !== 'pop' || !j.pops) return;
+      if (phaseRef.current !== 'pop' || !j.pops || blitzRef.current.active) return;
       const idle = (performance.now() - j.lastPop) / 1000;
       const single = s.endless === 'off';
       const done = engine.current.fraction();
 
-      // Things mellow as the next break gets closer.
       let calm = 0;
       if (s.windDown) calm = single ? done * 0.9 : Math.min(0.85, (1 - (j.next - st.pops) / EVERY) * 0.85);
       engine.current.setCalm(Math.max(0, calm));
       audio.current.setCalm(Math.max(0, calm));
 
-      // The break is earned when the counter passes the mark, and shown at
-      // the first pause in the popping (or shortly after, if there isn't
-      // one). A single sheet also stops when it's been popped clean.
       const earned = s.windDown && st.pops >= j.next && (idle > 0.8 || st.pops >= j.next + EVERY * 0.15);
       const empty = single && done >= 0.985 && idle > 0.9;
       if (earned) {
@@ -208,9 +382,7 @@ export default function App() {
       else await navigator.clipboard.writeText(text);
       setShared(true);
       setTimeout(() => setShared(false), 2200);
-    } catch {
-      // Share sheet dismissed, or clipboard blocked: nothing to do.
-    }
+    } catch {}
   }, []);
 
   const resetStats = useCallback(() => {
@@ -218,7 +390,6 @@ export default function App() {
     st.mm = st.session = st.pops = 0;
     journey.current.pops = 0;
     journey.current.next = EVERY;
-    // Back to the very start: counters at zero and an untouched sheet.
     engine.current.reset();
     engine.current.setCalm(0);
     audio.current.setCalm(0);
@@ -244,6 +415,56 @@ export default function App() {
     <>
       <canvas ref={canvasRef} className="wrap" />
 
+      {/* Lucky Golden Bubble Toast */}
+      <div className={`lucky-toast ${luckyToast ? 'show' : ''}`} aria-hidden="true">
+        <span>✨ Lucky Golden Bubble!</span>
+      </div>
+
+      {/* Zen Breathe Visual Rhythm Guide */}
+      {settings.zenBreathe && phase === 'pop' && !blitz.active && (
+        <div className="zen-breathe-guide" aria-hidden="true">
+          <div className="zen-circle" />
+          <span className="zen-caption">Breathe</span>
+        </div>
+      )}
+
+      {/* 30s Blitz Challenge HUD */}
+      {blitz.active && phase === 'pop' && (
+        <div className="blitz-hud" aria-live="polite">
+          <div className="blitz-timer">
+            <span className="blitz-sec">{blitz.timeLeft}s</span>
+          </div>
+          <div className="blitz-score">
+            <span className="blitz-num">{blitz.pops}</span>
+            <span className="blitz-lbl">POPS</span>
+          </div>
+          <button type="button" className="blitz-cancel" onClick={() => stopBlitz(blitz.pops)}>
+            End
+          </button>
+        </div>
+      )}
+
+      {/* 30s Blitz Result Modal */}
+      {blitz.showResult && (
+        <div className="blitz-modal-backdrop">
+          <div className="blitz-modal">
+            <span className="blitz-badge">{blitz.isNewBest ? '🏆 New Best!' : '⚡ Blitz Complete'}</span>
+            <h2>{blitz.pops} Bubbles</h2>
+            <p className="blitz-stat">in 30 seconds</p>
+            <p className="blitz-record">Personal Record: {blitz.best} pops</p>
+            <div className="blitz-actions">
+              <button type="button" className="blitz-again" onClick={startBlitz}>
+                Try Again
+              </button>
+              <button type="button" className="blitz-done" onClick={() => setBlitz((b) => ({ ...b, showResult: false }))}>
+                Keep Relaxing
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Mindful Pause / Breaks */}
       <div className={`veil ${phase !== 'pop' ? 'on' : ''}`} aria-live="polite">
         <div className={`beat ${phase === 'breath' ? 'show breathe' : ''}`}>
           <span className="tally">{pause.count.toLocaleString()} bubbles</span>
@@ -251,7 +472,6 @@ export default function App() {
         </div>
         <div className={`beat ${phase === 'ask' ? 'show' : ''}`}>
           <p>{pause.ask}</p>
-          {/* The same two numbers the meter was showing when the break began. */}
           {settings.meter && (
             <p className="sub">
               {stats.current.pops.toLocaleString()} bubbles, {formatLength(stats.current.mm)} of wrap so far.
@@ -280,7 +500,14 @@ export default function App() {
         Bubble Wrap
       </div>
 
+      {/* Real-time Meter & Speed Gauge */}
       <div className={'meter' + (settings.meter && phase === 'pop' ? '' : ' hide')} aria-live="off">
+        {settings.showPpm && ppm > 0 && (
+          <div className={`stat ppm-stat ${ppm >= 160 ? 'frenzy' : ''}`}>
+            <span className="meter-num">{ppm}</span>
+            <span className="meter-cap">pops/min</span>
+          </div>
+        )}
         <div className="stat">
           <span className="meter-num" ref={meterCount}>
             {stats.current.pops.toLocaleString()}
@@ -301,6 +528,8 @@ export default function App() {
         set={set}
         onClose={() => setPanel(false)}
         stats={view}
+        blitzBest={blitz.best}
+        onStartBlitz={startBlitz}
         name={name}
         onName={rename}
         onShare={share}
@@ -308,6 +537,7 @@ export default function App() {
         onReset={resetStats}
       />
 
+      {/* Floating Bottom Dock */}
       <div className="dock">
         {phase === 'pop' && (
           <>
@@ -332,6 +562,47 @@ export default function App() {
                 <path d="M20 4v4.5h-4.5" />
               </svg>
             </button>
+            <button
+              type="button"
+              className={`dock-icon ${settings.zenBreathe ? 'active' : ''}`}
+              onClick={() => set({ zenBreathe: !settings.zenBreathe })}
+              aria-label="Zen Breathe guide"
+              title="Zen Breathe guide"
+            >
+              <svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
+                <circle cx="12" cy="12" r="9" />
+                <circle cx="12" cy="12" r="4" />
+              </svg>
+            </button>
+            <button
+              type="button"
+              className={`dock-icon ${blitz.active ? 'active' : ''}`}
+              onClick={blitz.active ? () => stopBlitz(blitz.pops) : startBlitz}
+              aria-label="30s Pop Blitz"
+              title="30s Pop Blitz"
+            >
+              <svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
+                <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2" />
+              </svg>
+            </button>
+            <button
+              type="button"
+              className="dock-icon"
+              onClick={toggleFullscreen}
+              aria-label={fullscreen ? 'Exit Fullscreen' : 'Fullscreen'}
+              title={fullscreen ? 'Exit Fullscreen' : 'Fullscreen'}
+            >
+              {fullscreen ? (
+                <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M8 3v3a2 2 0 0 1-2 2H3m18 0h-3a2 2 0 0 1-2-2V3m0 18v-3a2 2 0 0 1 2-2h3M3 16h3a2 2 0 0 1 2 2v3" />
+                </svg>
+              ) : (
+                <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M15 3h6v6M9 21H3v-6M21 9l-7 7M3 15l7-7" />
+                </svg>
+              )}
+            </button>
+            <span className="dock-rule" />
           </>
         )}
         <button

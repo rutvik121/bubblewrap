@@ -206,13 +206,13 @@ export const BUBBLE_VERT = /* glsl */ `
 ${COMMON}
 ${BUBBLE_SHAPE}
 attribute vec4 aBase;   // centre xy (sheet coords), radius, height
-attribute vec4 aSeed;   // seed, lean xy, -
+attribute vec4 aSeed;   // seed, lean xy, isSpecial
 attribute vec4 aDynA;   // press, pop, wobble, pop age
 attribute vec4 aDynB;   // contact xy, offset xy
 varying vec2 vQ;
 varying vec4 vDyn;
 varying vec2 vC;
-varying vec3 vSeed;
+varying vec4 vSeed;
 varying float vH;
 varying vec3 vW;
 varying vec2 vTilt;
@@ -225,7 +225,7 @@ void main() {
   vQ = q;
   vDyn = aDynA;
   vC = aDynB.xy;
-  vSeed = aSeed.xyz;
+  vSeed = aSeed;
   vH = aBase.w;
   vW = w;
   vTilt = dynTilt(ctr) - wrinkleSlope(onSheet) * 0.7;
@@ -240,7 +240,7 @@ uniform vec3 uFilm;
 varying vec2 vQ;
 varying vec4 vDyn;
 varying vec2 vC;
-varying vec3 vSeed;
+varying vec4 vSeed;
 varying float vH;
 varying vec3 vW;
 varying vec2 vTilt;
@@ -251,9 +251,9 @@ void main() {
   vec2 L2 = normalize(uKeyDir.xy);
 
   float e = 0.014;
-  float z0 = bubbleZ(q, vDyn, vC, vH, vSeed);
-  float zx = bubbleZ(q + vec2(e, 0.0), vDyn, vC, vH, vSeed);
-  float zy = bubbleZ(q + vec2(0.0, e), vDyn, vC, vH, vSeed);
+  float z0 = bubbleZ(q, vDyn, vC, vH, vSeed.xyz);
+  float zx = bubbleZ(q + vec2(e, 0.0), vDyn, vC, vH, vSeed.xyz);
+  float zy = bubbleZ(q + vec2(0.0, e), vDyn, vC, vH, vSeed.xyz);
   vec3 N = normalize(vec3(vTilt - vec2(zx - z0, zy - z0) / e, 1.0));
   vec3 V = normalize(cameraPosition - vW);
   float nv = clamp(dot(N, V), 0.0, 1.0);
@@ -285,12 +285,21 @@ void main() {
   caus *= pow(clamp(dot(q / (rho + 0.001), -L2), 0.0, 1.0), 3.0);
   film += uKeyCol * (uBgA * 0.8 + 0.04) * caus * up * mask;
 
+  // Lucky / Golden bubble subtle warm rim glow & shimmer
+  if (vSeed.w > 0.5) {
+    float shine = 0.5 + 0.5 * sin(uTime * 2.8 + vSeed.x * 5.0);
+    vec3 goldTint = vec3(1.0, 0.82, 0.35);
+    film = mix(film, goldTint * (0.85 + 0.35 * edge), 0.40 * (1.0 - pop * 0.75));
+    film += goldTint * pow(edge, 1.6) * 0.7 * (1.0 - pop) * (0.75 + 0.25 * shine);
+  }
+
   // Puff of escaping air in the instant after the pop.
   float age = vDyn.w;
-  if (pop > 0.0 && age < 0.32) {
-    float k = age / 0.32;
-    float ring = exp(-pow((rho - (0.35 + 1.0 * sqrt(k))) / 0.16, 2.0));
-    film += vec3(0.5, 0.52, 0.55) * ring * (1.0 - k) * (1.0 - k) * 0.55 * smoothstep(1.45, 1.2, rho);
+  if (pop > 0.0 && age < 0.38) {
+    float k = age / 0.38;
+    float ring = exp(-pow((rho - (0.35 + 1.25 * sqrt(k))) / 0.18, 2.0));
+    vec3 puffCol = vSeed.w > 0.5 ? vec3(0.98, 0.86, 0.42) : vec3(0.55, 0.58, 0.62);
+    film += puffCol * ring * (1.0 - k) * (1.0 - k) * 0.75 * smoothstep(1.5, 1.2, rho);
   }
 
   // Soft shadow thrown away from the light; it dies with the bubble.
@@ -305,10 +314,12 @@ void main() {
 
 export const SPECK_VERT = /* glsl */ `
 uniform float uDpr;
-attribute vec2 aSpeck;   // size, alpha
+attribute vec3 aSpeck;   // size, alpha, isSpecial
 varying float vA;
+varying float vSpecial;
 void main() {
   vA = aSpeck.y;
+  vSpecial = aSpeck.z;
   gl_PointSize = aSpeck.x * uDpr;
   gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
 }
@@ -316,9 +327,11 @@ void main() {
 
 export const SPECK_FRAG = /* glsl */ `
 varying float vA;
+varying float vSpecial;
 void main() {
   float d = length(gl_PointCoord - 0.5) * 2.0;
   float a = smoothstep(1.0, 0.2, d) * vA;
-  gl_FragColor = vec4(vec3(0.92, 0.95, 1.0) * a, 0.0);
+  vec3 col = vSpecial > 0.5 ? vec3(1.0, 0.85, 0.32) : vec3(0.92, 0.95, 1.0);
+  gl_FragColor = vec4(col * a, 0.0);
 }
 `;
