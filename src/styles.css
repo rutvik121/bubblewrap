@@ -147,21 +147,42 @@ body {
 /* A quiet wordmark on the bare table, where there's room for one. */
 .mark {
   position: fixed;
-  top: 26px;
+  top: 24px;
   left: 30px;
-  color: rgba(255, 255, 255, 0.55);
-  font-family: 'Iowan Old Style', 'Palatino Linotype', Palatino, 'Book Antiqua', Georgia, serif;
-  font-size: 15px;
-  font-style: italic;
-  letter-spacing: 0.02em;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  color: rgba(255, 255, 255, 0.7);
   pointer-events: none;
   transition:
     opacity 1.2s ease,
     color 0.6s ease;
 }
 
+.mark-title {
+  font-family: 'Iowan Old Style', 'Palatino Linotype', Palatino, 'Book Antiqua', Georgia, serif;
+  font-size: 17px;
+  font-style: italic;
+  font-weight: 500;
+  letter-spacing: 0.02em;
+  line-height: 1.15;
+}
+
+.mark-sub {
+  font-family: ui-sans-serif, system-ui, -apple-system, sans-serif;
+  font-size: 10px;
+  font-style: normal;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: rgba(255, 255, 255, 0.4);
+}
+
 [data-ink='dark'] .mark {
-  color: rgba(40, 30, 34, 0.6);
+  color: rgba(40, 30, 34, 0.85);
+}
+
+[data-ink='dark'] .mark-sub {
+  color: rgba(40, 30, 34, 0.48);
 }
 
 .mark.hide {

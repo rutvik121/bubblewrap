@@ -497,7 +497,8 @@ export default function App() {
       </div>
 
       <div className={phase !== 'pop' ? 'mark hide' : 'mark'} aria-hidden="true">
-        Bubble Wrap
+        <span className="mark-title">Pop Therapy</span>
+        <span className="mark-sub">virtual bubble wrap</span>
       </div>
 
       {/* Real-time Meter & Speed Gauge */}
